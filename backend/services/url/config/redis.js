@@ -1,7 +1,7 @@
 import Redis from "ioredis";
 
 const redisUrl = process.env.REDIS_URL || "redis://localhost:6379";
-const COUNTER_START = parseInt(process.env.COUNTER_START || "10000000", 10);
+const COUNTER_START = process.env.COUNTER_START || "60000000000";
 
 export const redis = new Redis(redisUrl, {
     maxRetriesPerRequest: 3,
@@ -20,15 +20,14 @@ redis.on("error", (err) => {
 });
 
 /**
- * Initializes the counter in Redis if it does not already exist
+ * Ensures the counter in Redis is at least COUNTER_START
  */
 export const initCounter = async () => {
     try {
-        const exists = await redis.exists("url:counter");
-        if (!exists) {
-            // Set initial counter value (NX = only set if not exists)
-            await redis.set("url:counter", COUNTER_START, "NX");
-            console.log(`URL Service: Initialized Redis url:counter to ${COUNTER_START}`);
+        const currentVal = await redis.get("url:counter");
+        if (!currentVal || BigInt(currentVal) < BigInt(COUNTER_START)) {
+            await redis.set("url:counter", COUNTER_START.toString());
+            console.log(`URL Service: Advanced Redis url:counter to ${COUNTER_START}`);
         }
     } catch (err) {
         console.error("Failed to initialize Redis counter:", err.message);
