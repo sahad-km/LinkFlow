@@ -18,4 +18,9 @@ export const connectDB = async () => {
     }
 };
 
+export const closeDB = async () => {
+    await sql.end();
+    console.log("Redirect Service: PostgreSQL connection closed");
+};
+
 export default sql;

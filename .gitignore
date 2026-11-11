@@ -8,7 +8,7 @@ node_modules/
 .env
 .env.*
 !.env.example
-*.env
+!.env.test.example
 
 # Production Build Artifacts
 dist/

@@ -54,8 +54,13 @@ export const connectDB = async () => {
         console.log("PostgreSQL Connected & Auth Tables Verified");
     } catch (error) {
         console.error("Error connecting to database:", error);
-        process.exit(1);
+        throw error;
     }
+};
+
+export const closeDB = async () => {
+    await sql.end();
+    console.log("Auth Service: PostgreSQL connection closed");
 };
 
 export default sql;

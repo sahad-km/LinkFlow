@@ -1,0 +1,24 @@
+{
+  "devDependencies": {
+    "jest": "^30.5.2",
+    "supertest": "^7.3.2"
+  },
+  "scripts": {
+    "test": "node scripts/run-all-tests.js",
+    "test:all": "node scripts/run-all-tests.js",
+    "test:unit": "node --experimental-vm-modules ./node_modules/jest/bin/jest.js --runInBand services/**/tests/unit",
+    "test:api": "node --experimental-vm-modules ./node_modules/jest/bin/jest.js --runInBand services/**/tests/api",
+    "test:gateway": "node --experimental-vm-modules ./node_modules/jest/bin/jest.js --runInBand gateway/tests",
+    "test:auth": "node --env-file=./services/auth/.env.test --experimental-vm-modules ./node_modules/jest/bin/jest.js --runInBand services/auth/tests/unit services/auth/tests/api services/auth/tests/integration",
+    "test:auth:integration": "node --env-file=./services/auth/.env.test --experimental-vm-modules ./node_modules/jest/bin/jest.js --runInBand services/auth/tests/integration",
+    "test:url": "node --env-file=./services/url/.env.test --experimental-vm-modules ./node_modules/jest/bin/jest.js --runInBand services/url/tests/unit services/url/tests/api services/url/tests/integration",
+    "test:url:integration": "node --env-file=./services/url/.env.test --experimental-vm-modules ./node_modules/jest/bin/jest.js --runInBand services/url/tests/integration",
+    "test:redirect": "node --env-file=./services/redirect/.env.test --experimental-vm-modules ./node_modules/jest/bin/jest.js --runInBand services/redirect/tests/unit services/redirect/tests/api services/redirect/tests/integration",
+    "test:redirect:integration": "node --env-file=./services/redirect/.env.test --experimental-vm-modules ./node_modules/jest/bin/jest.js --runInBand services/redirect/tests/integration",
+    "test:analytics": "node --env-file=./services/analytics/.env.test --experimental-vm-modules ./node_modules/jest/bin/jest.js --runInBand services/analytics/tests/unit services/analytics/tests/integration",
+    "test:analytics:integration": "node --env-file=./services/analytics/.env.test --experimental-vm-modules ./node_modules/jest/bin/jest.js --runInBand services/analytics/tests/integration",
+    "test:analytics:api": "node --env-file=./services/analytics/.env.test --experimental-vm-modules ./node_modules/jest/bin/jest.js --runInBand services/analytics/tests/integration/analyticsApi.integration.test.js",
+    "test:e2e": "node --max-old-space-size=4096 --experimental-vm-modules ./node_modules/jest/bin/jest.js --runInBand --forceExit tests/e2e",
+    "test:coverage": "node --experimental-vm-modules ./node_modules/jest/bin/jest.js --coverage"
+  }
+}

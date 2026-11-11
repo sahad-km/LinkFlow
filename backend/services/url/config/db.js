@@ -23,23 +23,36 @@ export const initTables = async () => {
     `;
 
     await sql`
-        CREATE INDEX IF NOT EXISTS idx_urls_short_code ON urls(short_code);
-    `;
-
-    await sql`
         CREATE INDEX IF NOT EXISTS idx_urls_user_id ON urls(user_id);
     `;
 };
+
+// export const connectDB = async () => {
+//     try {
+//         await sql`SELECT 1`;
+//         await initTables();
+//         console.log("URL Service: PostgreSQL Connected & URLs Table Ready");
+//     } catch (error) {
+//         console.error("Error connecting to database:", error);
+//         process.exit(1);
+//     }
+// };
 
 export const connectDB = async () => {
     try {
         await sql`SELECT 1`;
         await initTables();
+
         console.log("URL Service: PostgreSQL Connected & URLs Table Ready");
     } catch (error) {
         console.error("Error connecting to database:", error);
-        process.exit(1);
+        throw error;
     }
+};
+
+export const closeDB = async () => {
+    await sql.end();
+    console.log("URL Service: PostgreSQL connection closed");
 };
 
 export default sql;

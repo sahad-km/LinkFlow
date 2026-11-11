@@ -10,31 +10,34 @@ const connectProducer = async () => {
         await producer.connect();
         console.log("Redirect Service: Kafka producer connected");
     } catch (error) {
-        console.error("Redirect Service: Failed to connect Kafka producer:", error.message);
+        console.error(
+            "Redirect Service: Failed to connect Kafka producer:",
+            error.message
+        );
+        throw error;
     }
 };
 
 const publishClickEvent = async (event) => {
-    try {
-        const key = event.linkId ? String(event.linkId) : (event.shortCode ? String(event.shortCode) : null);
-        await producer.send({
-            topic: "click-events",
-            messages: [
-                {
-                    key,
-                    value: JSON.stringify(event),
-                },
-            ],
-        });
+    const key = event.linkId
+        ? String(event.linkId)
+        : (event.shortCode ? String(event.shortCode) : null);
 
-        console.log("Kafka click event published successfully:", {
-            eventId: event.eventId,
-            shortCode: event.shortCode,
-            linkId: event.linkId
-        });
-    } catch (error) {
-        console.error("Failed to publish Kafka click event:", error.message);
-    }
+    await producer.send({
+        topic: "click-events",
+        messages: [
+            {
+                key,
+                value: JSON.stringify(event),
+            },
+        ],
+    });
+
+    console.log("Kafka click event published successfully:", {
+        eventId: event.eventId,
+        shortCode: event.shortCode,
+        linkId: event.linkId
+    });
 };
 
 const disconnectProducer = async () => {

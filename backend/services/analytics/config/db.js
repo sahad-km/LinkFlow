@@ -34,16 +34,34 @@ export const initTables = async () => {
     await sql`
         CREATE INDEX IF NOT EXISTS idx_click_events_clicked_at ON click_events(clicked_at);
     `;
+
+    await sql`
+        CREATE UNIQUE INDEX IF NOT EXISTS idx_click_events_event_id_unique
+        ON click_events(event_id)
+        WHERE event_id IS NOT NULL;
+    `;
+
+    await sql`
+        CREATE INDEX IF NOT EXISTS idx_click_events_short_code_clicked_at
+        ON click_events (short_code, clicked_at DESC);
+    `;
 };
 
 export const connectDB = async () => {
     try {
         await sql`SELECT 1`;
         await initTables();
-        console.log("Analytics Service: PostgreSQL Connected & click_events Table Ready");
+
+        console.log(
+            "Analytics Service: PostgreSQL Connected & click_events Table Ready"
+        );
     } catch (error) {
-        console.error("Analytics Service: Error connecting to database:", error);
-        process.exit(1);
+        console.error(
+            "Analytics Service: Error connecting to database:",
+            error.message
+        );
+
+        throw error;
     }
 };
 

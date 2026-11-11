@@ -18,9 +18,9 @@ export const parseUserAgent = (uaString = "") => {
     let os = "Other";
     if (/windows nt 10/i.test(uaString)) os = "Windows 10/11";
     else if (/windows/i.test(uaString)) os = "Windows";
-    else if (/macintosh|mac os x/i.test(uaString)) os = "macOS";
     else if (/android/i.test(uaString)) os = "Android";
     else if (/iphone|ipad|ipod/i.test(uaString)) os = "iOS";
+    else if (/macintosh|mac os x/i.test(uaString)) os = "macOS";
     else if (/linux/i.test(uaString)) os = "Linux";
 
     let device = "Desktop";

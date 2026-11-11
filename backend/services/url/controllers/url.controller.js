@@ -48,7 +48,12 @@ export const createUrl = async (req, res) => {
 
         // Cache the mapping in Redis for ultra-fast redirection (sub-millisecond lookup)
         // Store for 30 days (2592000 seconds)
-        await redis.set(`url:${shortCode}`, longUrl, "EX", 2592000);
+        // Cache the mapping in Redis (best-effort operation)
+        try {
+            await redis.set(`url:${shortCode}`, longUrl, "EX", 2592000);
+        } catch (cacheError) {
+            console.error("Redis cache write failed:", cacheError.message);
+        }
 
         const shortUrl = `${BASE_URL}/${shortCode}`;
 
@@ -66,7 +71,16 @@ export const createUrl = async (req, res) => {
             }
         });
     } catch (error) {
+        // PostgreSQL unique constraint violation
+        if (error.code === "23505") {
+            return res.status(409).json({
+                success: false,
+                message: "This short code is already in use. Please choose another."
+            });
+        }
+
         console.error("Create URL error:", error);
+
         return res.status(500).json({
             success: false,
             message: "Internal server error"
@@ -186,13 +200,13 @@ export const deleteUrl = async (req, res) => {
             });
         }
 
+        // Invalidate Redis cache first
+        await redis.del(`url:${shortCode}`);
+
         // Delete from PostgreSQL
         await sql`
-            DELETE FROM urls WHERE short_code = ${shortCode}
-        `;
-
-        // Invalidate Redis cache
-        await redis.del(`url:${shortCode}`);
+    DELETE FROM urls WHERE short_code = ${shortCode}
+`;
 
         return res.status(200).json({
             success: true,

@@ -7,6 +7,12 @@ const BASE62_CHARS = "0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUV
  */
 export const encodeBase62 = (num) => {
     let n = BigInt(num);
+
+    // Reject negative numbers
+    if (n < 0n) {
+        throw new Error("Input must be a non-negative integer");
+    }
+
     if (n === 0n) return BASE62_CHARS[0];
 
     const base = BigInt(62);
