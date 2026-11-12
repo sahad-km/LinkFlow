@@ -1,4 +1,4 @@
-const API_BASE = ""; // Uses Vite proxy to http://localhost:8000
+const API_BASE = import.meta.env.VITE_API_BASE_URL || "";
 
 export const getToken = () => localStorage.getItem("linkflow_token");
 export const setToken = (token) => localStorage.setItem("linkflow_token", token);
@@ -109,11 +109,11 @@ export const api = {
   getSystemStatus: async () => {
     try {
       const [gw, auth, url, redir, analytics] = await Promise.allSettled([
-        fetch("/"),
-        fetch("/auth"),
-        fetch("/url"),
-        fetch("/redirect"),
-        fetch("/analytics"),
+        fetch(`${API_BASE}/`),
+        fetch(`${API_BASE}/auth`),
+        fetch(`${API_BASE}/url`),
+        fetch(`${API_BASE}/redirect`),
+        fetch(`${API_BASE}/analytics`),
       ]);
       return {
         gateway: gw.status === "fulfilled" && gw.value.ok,
