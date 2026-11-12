@@ -1,4 +1,5 @@
-name: LinkFlow CI
+
+name: LinkFlow CI/CD
 
 on:
   push:
@@ -65,40 +66,21 @@ jobs:
         working-directory: backend
         run: npm run test:gateway
 
-      - name: Debug GitHub identity
-        run: |
-          echo "Repository: $GITHUB_REPOSITORY"
-          echo "Branch: $GITHUB_REF"
-
-      
-      - name: Inspect OIDC claims
-        uses: actions/github-script@v7
-        with:
-          script: |
-            const token = await core.getIDToken('sts.amazonaws.com');
-            const payload = token.split('.')[1];
-            const claims = JSON.parse(
-              Buffer.from(payload, 'base64url').toString()
-            );
-
-            console.log('OIDC issuer:', claims.iss);
-            console.log('OIDC audience:', claims.aud);
-            console.log('OIDC subject:', claims.sub);
-
-
+      # Publish Docker images only on pushes to main.
       - name: Configure AWS credentials
         if: github.event_name == 'push' && github.ref == 'refs/heads/main'
         uses: aws-actions/configure-aws-credentials@v4
         with:
           role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
-          aws-region: ap-south-1
+          aws-region: ${{ vars.AWS_REGION }}
 
       - name: Login to Amazon ECR
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
         id: login-ecr
         uses: aws-actions/amazon-ecr-login@v2
 
-
       - name: Build and push Gateway
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
         run: |
           docker build -t $ECR_REGISTRY/linkflow-gateway:latest ./backend/gateway
           docker push $ECR_REGISTRY/linkflow-gateway:latest
@@ -106,6 +88,7 @@ jobs:
           ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
 
       - name: Build and push Auth
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
         run: |
           docker build -t $ECR_REGISTRY/linkflow-auth:latest ./backend/services/auth
           docker push $ECR_REGISTRY/linkflow-auth:latest
@@ -113,6 +96,7 @@ jobs:
           ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
 
       - name: Build and push URL
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
         run: |
           docker build -t $ECR_REGISTRY/linkflow-url:latest ./backend/services/url
           docker push $ECR_REGISTRY/linkflow-url:latest
@@ -120,6 +104,7 @@ jobs:
           ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
 
       - name: Build and push Redirect
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
         run: |
           docker build -t $ECR_REGISTRY/linkflow-redirect:latest ./backend/services/redirect
           docker push $ECR_REGISTRY/linkflow-redirect:latest
@@ -127,8 +112,63 @@ jobs:
           ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
 
       - name: Build and push Analytics
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
         run: |
           docker build -t $ECR_REGISTRY/linkflow-analytics:latest ./backend/services/analytics
           docker push $ECR_REGISTRY/linkflow-analytics:latest
         env:
           ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
+
+      # Deploy the newly published images to EC2 through SSM.
+      - name: Deploy backend to EC2
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        env:
+          EC2_INSTANCE_ID: ${{ vars.EC2_INSTANCE_ID }}
+          AWS_REGION: ${{ vars.AWS_REGION }}
+          ECR_REGISTRY: 612601323865.dkr.ecr.ap-south-1.amazonaws.com
+        run: |
+          set -e
+
+          COMMAND_ID=$(aws ssm send-command \
+            --instance-ids "$EC2_INSTANCE_ID" \
+            --document-name "AWS-RunShellScript" \
+            --comment "Deploy LinkFlow backend from GitHub Actions" \
+            --parameters "commands=[
+              \"set -e\",
+              \"cd /home/ubuntu/linkflow\",
+              \"aws ecr get-login-password --region $AWS_REGION | docker login --username AWS --password-stdin $ECR_REGISTRY\",
+              \"docker compose -f docker-compose.prod.yml pull\",
+              \"docker compose -f docker-compose.prod.yml up -d --remove-orphans\"
+            ]" \
+            --query "Command.CommandId" \
+            --output text)
+
+          echo "SSM Command ID: $COMMAND_ID"
+
+          for i in {1..30}; do
+            STATUS=$(aws ssm get-command-invocation \
+              --command-id "$COMMAND_ID" \
+              --instance-id "$EC2_INSTANCE_ID" \
+              --query "Status" \
+              --output text 2>/dev/null || true)
+
+            echo "Deployment status: $STATUS"
+
+            if [ "$STATUS" = "Success" ]; then
+              echo "Backend deployment completed successfully."
+              exit 0
+            fi
+
+            if [[ "$STATUS" == "Failed" || "$STATUS" == "TimedOut" || "$STATUS" == "Cancelled" ]]; then
+              echo "Backend deployment failed."
+              aws ssm get-command-invocation \
+                --command-id "$COMMAND_ID" \
+                --instance-id "$EC2_INSTANCE_ID"
+              exit 1
+            fi
+
+            sleep 10
+          done
+
+          echo "Deployment timed out while waiting for SSM."
+          exit 1
