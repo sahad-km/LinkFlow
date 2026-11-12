@@ -65,6 +65,11 @@ jobs:
         working-directory: backend
         run: npm run test:gateway
 
+      - name: Debug GitHub identity
+        run: |
+          echo "Repository: $GITHUB_REPOSITORY"
+          echo "Branch: $GITHUB_REF"
+
       - name: Configure AWS credentials
         if: github.event_name == 'push' && github.ref == 'refs/heads/main'
         uses: aws-actions/configure-aws-credentials@v4
