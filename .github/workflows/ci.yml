@@ -96,3 +96,39 @@ jobs:
       - name: Login to Amazon ECR
         id: login-ecr
         uses: aws-actions/amazon-ecr-login@v2
+
+
+      - name: Build and push Gateway
+        run: |
+          docker build -t $ECR_REGISTRY/linkflow-gateway:latest ./backend/gateway
+          docker push $ECR_REGISTRY/linkflow-gateway:latest
+        env:
+          ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
+
+      - name: Build and push Auth
+        run: |
+          docker build -t $ECR_REGISTRY/linkflow-auth:latest ./backend/services/auth
+          docker push $ECR_REGISTRY/linkflow-auth:latest
+        env:
+          ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
+
+      - name: Build and push URL
+        run: |
+          docker build -t $ECR_REGISTRY/linkflow-url:latest ./backend/services/url
+          docker push $ECR_REGISTRY/linkflow-url:latest
+        env:
+          ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
+
+      - name: Build and push Redirect
+        run: |
+          docker build -t $ECR_REGISTRY/linkflow-redirect:latest ./backend/services/redirect
+          docker push $ECR_REGISTRY/linkflow-redirect:latest
+        env:
+          ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
+
+      - name: Build and push Analytics
+        run: |
+          docker build -t $ECR_REGISTRY/linkflow-analytics:latest ./backend/services/analytics
+          docker push $ECR_REGISTRY/linkflow-analytics:latest
+        env:
+          ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
