@@ -29,6 +29,26 @@ jobs:
         working-directory: backend
         run: npm ci
 
+      - name: Install gateway dependencies
+        working-directory: backend/gateway
+        run: npm ci
+
+      - name: Install auth dependencies
+        working-directory: backend/services/auth
+        run: npm ci
+
+      - name: Install URL dependencies
+        working-directory: backend/services/url
+        run: npm ci
+
+      - name: Install redirect dependencies
+        working-directory: backend/services/redirect
+        run: npm ci
+
+      - name: Install analytics dependencies
+        working-directory: backend/services/analytics
+        run: npm ci
+
       - name: Run unit tests
         working-directory: backend
         run: npm run test:unit
