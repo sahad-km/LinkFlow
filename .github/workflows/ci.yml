@@ -70,10 +70,21 @@ jobs:
           echo "Repository: $GITHUB_REPOSITORY"
           echo "Branch: $GITHUB_REF"
 
-      - name: Debug OIDC claims
-        uses: github/actions-oidc-debugger@v1
+      
+      - name: Inspect OIDC claims
+        uses: actions/github-script@v7
         with:
-          audience: sts.amazonaws.com
+          script: |
+            const token = await core.getIDToken('sts.amazonaws.com');
+            const payload = token.split('.')[1];
+            const claims = JSON.parse(
+              Buffer.from(payload, 'base64url').toString()
+            );
+
+            console.log('OIDC issuer:', claims.iss);
+            console.log('OIDC audience:', claims.aud);
+            console.log('OIDC subject:', claims.sub);
+
 
       - name: Configure AWS credentials
         if: github.event_name == 'push' && github.ref == 'refs/heads/main'
