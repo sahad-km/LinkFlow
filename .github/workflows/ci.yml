@@ -82,42 +82,52 @@ jobs:
       - name: Build and push Gateway
         if: github.event_name == 'push' && github.ref == 'refs/heads/main'
         run: |
-          docker build -t $ECR_REGISTRY/linkflow-gateway:latest ./backend/gateway
+          docker build -t $ECR_REGISTRY/linkflow-gateway:latest -t $ECR_REGISTRY/linkflow-gateway:$IMAGE_TAG ./backend/gateway
           docker push $ECR_REGISTRY/linkflow-gateway:latest
+          docker push $ECR_REGISTRY/linkflow-gateway:$IMAGE_TAG
         env:
           ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
+          IMAGE_TAG: ${{ github.sha }}
 
       - name: Build and push Auth
         if: github.event_name == 'push' && github.ref == 'refs/heads/main'
         run: |
-          docker build -t $ECR_REGISTRY/linkflow-auth:latest ./backend/services/auth
+          docker build -t $ECR_REGISTRY/linkflow-auth:latest -t $ECR_REGISTRY/linkflow-auth:$IMAGE_TAG ./backend/services/auth
           docker push $ECR_REGISTRY/linkflow-auth:latest
+          docker push $ECR_REGISTRY/linkflow-auth:$IMAGE_TAG
         env:
           ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
+          IMAGE_TAG: ${{ github.sha }}
 
       - name: Build and push URL
         if: github.event_name == 'push' && github.ref == 'refs/heads/main'
         run: |
-          docker build -t $ECR_REGISTRY/linkflow-url:latest ./backend/services/url
+          docker build -t $ECR_REGISTRY/linkflow-url:latest -t $ECR_REGISTRY/linkflow-url:$IMAGE_TAG ./backend/services/url
           docker push $ECR_REGISTRY/linkflow-url:latest
+          docker push $ECR_REGISTRY/linkflow-url:$IMAGE_TAG
         env:
           ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
+          IMAGE_TAG: ${{ github.sha }}
 
       - name: Build and push Redirect
         if: github.event_name == 'push' && github.ref == 'refs/heads/main'
         run: |
-          docker build -t $ECR_REGISTRY/linkflow-redirect:latest ./backend/services/redirect
+          docker build -t $ECR_REGISTRY/linkflow-redirect:latest -t $ECR_REGISTRY/linkflow-redirect:$IMAGE_TAG ./backend/services/redirect
           docker push $ECR_REGISTRY/linkflow-redirect:latest
+          docker push $ECR_REGISTRY/linkflow-redirect:$IMAGE_TAG
         env:
           ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
+          IMAGE_TAG: ${{ github.sha }}
 
       - name: Build and push Analytics
         if: github.event_name == 'push' && github.ref == 'refs/heads/main'
         run: |
-          docker build -t $ECR_REGISTRY/linkflow-analytics:latest ./backend/services/analytics
+          docker build -t $ECR_REGISTRY/linkflow-analytics:latest -t $ECR_REGISTRY/linkflow-analytics:$IMAGE_TAG ./backend/services/analytics
           docker push $ECR_REGISTRY/linkflow-analytics:latest
+          docker push $ECR_REGISTRY/linkflow-analytics:$IMAGE_TAG
         env:
           ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
+          IMAGE_TAG: ${{ github.sha }}
 
       # Deploy the newly published images to EC2 through SSM.
       - name: Deploy backend to EC2
@@ -126,6 +136,7 @@ jobs:
           EC2_INSTANCE_ID: ${{ vars.EC2_INSTANCE_ID }}
           AWS_REGION: ${{ vars.AWS_REGION }}
           ECR_REGISTRY: 612601323865.dkr.ecr.ap-south-1.amazonaws.com
+          IMAGE_TAG: ${{ github.sha }}
         run: |
           set -e
 
@@ -136,6 +147,7 @@ jobs:
             --parameters "commands=[
               \"set -e\",
               \"cd /home/ubuntu/linkflow\",
+              \"export IMAGE_TAG=$IMAGE_TAG\",
               \"aws ecr get-login-password --region $AWS_REGION | docker login --username AWS --password-stdin $ECR_REGISTRY\",
               \"docker compose -f docker-compose.prod.yml pull\",
               \"docker compose -f docker-compose.prod.yml up -d --remove-orphans\"
