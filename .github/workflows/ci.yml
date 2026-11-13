@@ -140,24 +140,89 @@ jobs:
         run: |
           set -e
 
+          REMOTE_SCRIPT=$(cat <<'REMOTE_EOF'
+          set -Eeuo pipefail
+
+          cd /home/ubuntu/linkflow
+
+          NEW_TAG="${NEW_TAG:?Missing new image tag}"
+          PREVIOUS_TAG=$(cat .deployed_image_tag)
+
+          if [ -z "$PREVIOUS_TAG" ]; then
+            echo "Previous deployment tag is missing."
+            exit 1
+          fi
+
+          echo "Previous version: $PREVIOUS_TAG"
+          echo "New version: $NEW_TAG"
+
+          aws ecr get-login-password --region "$AWS_REGION" \
+            | docker login --username AWS --password-stdin "$ECR_REGISTRY"
+
+          deploy_and_check() {
+            local tag="$1"
+
+            echo "Deploying version: $tag"
+            export IMAGE_TAG="$tag"
+
+            docker compose -f docker-compose.prod.yml pull || return 1
+            docker compose -f docker-compose.prod.yml up -d --remove-orphans || return 1
+
+            echo "Checking application health..."
+
+            for attempt in $(seq 1 30); do
+              if curl -fsS http://localhost/health >/dev/null; then
+                echo "Health check passed."
+                return 0
+              fi
+
+              echo "Health check attempt $attempt/30 failed."
+              sleep 10
+            done
+
+            echo "Health check failed."
+            return 1
+          }
+
+          if deploy_and_check "$NEW_TAG"; then
+            printf '%s\n' "$NEW_TAG" > .deployed_image_tag.tmp
+            chown ubuntu:ubuntu .deployed_image_tag.tmp
+            chmod 600 .deployed_image_tag.tmp
+            mv .deployed_image_tag.tmp .deployed_image_tag
+
+            echo "Deployment successful. Version $NEW_TAG is now active."
+            exit 0
+          fi
+
+          echo "New deployment failed. Rolling back to $PREVIOUS_TAG..."
+
+          if deploy_and_check "$PREVIOUS_TAG"; then
+            echo "Rollback successful. Previous version is restored."
+          else
+            echo "CRITICAL: Automatic rollback also failed."
+          fi
+
+          exit 1
+          REMOTE_EOF
+          )
+
+          REMOTE_SCRIPT_B64=$(printf '%s' "$REMOTE_SCRIPT" | base64 -w0)
+
+          REMOTE_COMMAND="export NEW_TAG='$IMAGE_TAG' AWS_REGION='$AWS_REGION' ECR_REGISTRY='$ECR_REGISTRY'; echo '$REMOTE_SCRIPT_B64' | base64 -d | bash"
+
+          PARAMETERS=$(jq -n --arg command "$REMOTE_COMMAND" '{commands: [$command]}')
+
           COMMAND_ID=$(aws ssm send-command \
             --instance-ids "$EC2_INSTANCE_ID" \
             --document-name "AWS-RunShellScript" \
-            --comment "Deploy LinkFlow backend from GitHub Actions" \
-            --parameters "commands=[
-              \"set -e\",
-              \"cd /home/ubuntu/linkflow\",
-              \"export IMAGE_TAG=$IMAGE_TAG\",
-              \"aws ecr get-login-password --region $AWS_REGION | docker login --username AWS --password-stdin $ECR_REGISTRY\",
-              \"docker compose -f docker-compose.prod.yml pull\",
-              \"docker compose -f docker-compose.prod.yml up -d --remove-orphans\"
-            ]" \
+            --comment "Deploy LinkFlow backend with automatic rollback" \
+            --parameters "$PARAMETERS" \
             --query "Command.CommandId" \
             --output text)
 
           echo "SSM Command ID: $COMMAND_ID"
 
-          for i in {1..30}; do
+          for i in {1..90}; do
             STATUS=$(aws ssm get-command-invocation \
               --command-id "$COMMAND_ID" \
               --instance-id "$EC2_INSTANCE_ID" \
@@ -184,6 +249,7 @@ jobs:
 
           echo "Deployment timed out while waiting for SSM."
           exit 1
+
 
 
 
