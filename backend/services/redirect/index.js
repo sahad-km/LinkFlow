@@ -1,4 +1,3 @@
-
 import app from "./app.js";
 import { connectDB, closeDB } from "./config/db.js";
 import redis from "./config/redis.js";
@@ -7,6 +6,7 @@ import {
     disconnectProducer
 } from "./producers/clickProducer.js";
 import { waitForPendingAnalytics } from "./controllers/redirect.controller.js";
+import logger from "./logger.js";
 
 const ANALYTICS_SHUTDOWN_TIMEOUT_MS = Number(
     process.env.ANALYTICS_SHUTDOWN_TIMEOUT_MS || 10000
@@ -33,9 +33,10 @@ const waitForAnalyticsWithTimeout = async () => {
     clearTimeout(timeoutId);
 
     if (completed) {
-        console.log("Shutdown: Pending analytics completed");
+        logger.info("Shutdown: Pending analytics completed");
     } else {
-        console.warn(
+        logger.warn(
+            { timeoutMs: ANALYTICS_SHUTDOWN_TIMEOUT_MS },
             `Shutdown: Analytics wait timed out after ${ANALYTICS_SHUTDOWN_TIMEOUT_MS}ms`
         );
     }
@@ -45,15 +46,15 @@ const startServer = async () => {
     try {
         await connectDB();
         await redis.ping();
-        console.log("Redirect Service: Redis Connected");
+        logger.info("Redirect Service: Redis Connected");
 
         await connectProducer();
 
         server = app.listen(PORT, () => {
-            console.log(`Redirect server is running on port ${PORT}`);
+            logger.info({ port: PORT }, `Redirect server is running on port ${PORT}`);
         });
     } catch (error) {
-        console.error("Redirect Service startup failed:", error);
+        logger.error({ err: error }, "Redirect Service startup failed");
         await shutdown();
         process.exit(1);
     }
@@ -66,26 +67,17 @@ const shutdown = async () => {
     if (isShuttingDown) return;
     isShuttingDown = true;
 
-    console.log("\nRedirect Service shutting down...");
-
-    // 1. Stop accepting new HTTP requests.
-    // if (server) {
-    //     await new Promise((resolve) => {
-    //         server.close(resolve);
-    //     });
-
-    //     console.log("HTTP server closed");
-    // }
+    logger.info("Redirect Service shutting down...");
 
     if (server) {
-        console.log("Shutdown: Closing HTTP server...");
+        logger.info("Shutdown: Closing HTTP server...");
 
         await new Promise((resolve) => {
             server.close((error) => {
                 if (error) {
-                    console.error("HTTP server close error:", error);
+                    logger.error({ err: error }, "HTTP server close error");
                 } else {
-                    console.log("HTTP server closed");
+                    logger.info("HTTP server closed");
                 }
 
                 resolve();
@@ -93,58 +85,57 @@ const shutdown = async () => {
         });
     }
 
-    console.log("Shutdown: HTTP server step completed");
-
+    logger.info("Shutdown: HTTP server step completed");
 
     // Wait for ongoing analytics operations.
-    console.log("Shutdown: Waiting for pending analytics...");
+    logger.info("Shutdown: Waiting for pending analytics...");
 
     await waitForAnalyticsWithTimeout();
 
     // 2. Disconnect Kafka.
     try {
-        console.log("Shutdown: Disconnecting Kafka...");
+        logger.info("Shutdown: Disconnecting Kafka...");
         await disconnectProducer();
-        console.log("Shutdown: Kafka disconnected");
+        logger.info("Shutdown: Kafka disconnected");
     } catch (error) {
-        console.error("Kafka shutdown failed:", error.message);
+        logger.error({ err: error }, "Kafka shutdown failed");
     }
 
     // 3. Close Redis.
     try {
-        console.log("Shutdown: Closing Redis...");
+        logger.info("Shutdown: Closing Redis...");
         if (redis.status !== "end") {
             await redis.quit();
         }
-        console.log("Shutdown: Redis closed");
+        logger.info("Shutdown: Redis closed");
     } catch (error) {
-        console.error("Redis shutdown failed:", error.message);
+        logger.error({ err: error }, "Redis shutdown failed");
     }
 
     // 4. Close PostgreSQL.
     try {
-        console.log("Shutdown: Closing PostgreSQL...");
+        logger.info("Shutdown: Closing PostgreSQL...");
         await closeDB();
-        console.log("Shutdown: PostgreSQL closed");
+        logger.info("Shutdown: PostgreSQL closed");
     } catch (error) {
-        console.error("PostgreSQL shutdown failed:", error.message);
+        logger.error({ err: error }, "PostgreSQL shutdown failed");
     }
 
-    console.log("Redirect Service shutdown complete");
+    logger.info("Redirect Service shutdown complete");
 };
 
 
 process.on("SIGINT", () => {
-    console.log("SIGINT received");
+    logger.info("SIGINT received");
     shutdown().catch((error) => {
-        console.error("Shutdown error:", error);
+        logger.error({ err: error }, "Shutdown error");
     });
 });
 
 process.on("SIGTERM", () => {
-    console.log("SIGTERM received");
+    logger.info("SIGTERM received");
     shutdown().catch((error) => {
-        console.error("Shutdown error:", error);
+        logger.error({ err: error }, "Shutdown error");
     });
 });
 

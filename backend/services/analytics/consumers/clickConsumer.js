@@ -3,6 +3,7 @@ import kafka from "../config/kafka.js";
 import { sql } from "../config/db.js";
 import { parseUserAgent } from "../utils/parser.js";
 import { publishToDLQ } from "../producers/dlqProducer.js";
+import logger from "../logger.js";
 
 let isConnected = false;
 
@@ -36,7 +37,7 @@ export const connectConsumer = async () => {
     try {
         await consumer.connect();
         isConnected = true;
-        console.log("Analytics Service: Kafka consumer connected");
+        logger.info("Analytics Service: Kafka consumer connected");
 
         const topic = process.env.KAFKA_TOPIC || "click-events";
 
@@ -45,7 +46,7 @@ export const connectConsumer = async () => {
             fromBeginning: true,
         });
 
-        console.log(`Analytics Service: Subscribed to '${topic}' topic`);
+        logger.info({ topic }, `Analytics Service: Subscribed to '${topic}' topic`);
 
         await consumer.run({
             autoCommit: false,
@@ -190,11 +191,13 @@ export const connectConsumer = async () => {
                     });
 
                     if (!wasProcessed) {
-                        console.log(
+                        logger.info(
+                            { eventId },
                             `Analytics Service: Duplicate event ignored [${eventId}]`
                         );
                     } else {
-                        console.log(
+                        logger.info(
+                            { shortCode, browser, os, device },
                             `Analytics Service: Processed click event for [${shortCode}] (${browser} on ${os}, ${device})`
                         );
                     }
@@ -203,9 +206,9 @@ export const connectConsumer = async () => {
                     await commitMessageOffset({ topic, partition, message });
 
                 } catch (error) {
-                    console.error(
-                        "Analytics Service: Error processing Kafka click message:",
-                        error.message
+                    logger.error(
+                        { err: error },
+                        "Analytics Service: Error processing Kafka click message"
                     );
 
                     // 4. Permanently invalid events go to the DLQ.
@@ -224,7 +227,8 @@ export const connectConsumer = async () => {
                             message,
                         });
 
-                        console.log(
+                        logger.info(
+                            { offset: message.offset },
                             `Analytics Service: Permanently failed event committed after DLQ publishing [${message.offset}]`
                         );
 
@@ -237,9 +241,9 @@ export const connectConsumer = async () => {
             },
         });
     } catch (error) {
-        console.error(
-            "Analytics Service: Failed to start Kafka consumer:",
-            error.message
+        logger.error(
+            { err: error },
+            "Analytics Service: Failed to start Kafka consumer"
         );
 
         if (isConnected) {
@@ -247,13 +251,13 @@ export const connectConsumer = async () => {
                 await consumer.disconnect();
                 isConnected = false;
 
-                console.log(
+                logger.info(
                     "Analytics Service: Disconnected after startup failure"
                 );
             } catch (disconnectError) {
-                console.error(
-                    "Analytics Service: Cleanup failed:",
-                    disconnectError.message
+                logger.error(
+                    { err: disconnectError },
+                    "Analytics Service: Cleanup failed"
                 );
             }
         }
@@ -269,11 +273,11 @@ export const disconnectConsumer = async () => {
         await consumer.disconnect();
         isConnected = false;
 
-        console.log("Analytics Service: Kafka consumer disconnected");
+        logger.info("Analytics Service: Kafka consumer disconnected");
     } catch (error) {
-        console.error(
-            "Analytics Service: Error disconnecting Kafka consumer:",
-            error.message
+        logger.error(
+            { err: error },
+            "Analytics Service: Error disconnecting Kafka consumer"
         );
 
         throw error;

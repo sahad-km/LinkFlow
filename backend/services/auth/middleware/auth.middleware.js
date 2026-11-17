@@ -1,4 +1,5 @@
 import { verifyAccessToken } from "../utils/token.utils.js";
+import logger from "../logger.js";
 
 export const authenticateUser = (req, res, next) => {
     try {
@@ -22,7 +23,7 @@ export const authenticateUser = (req, res, next) => {
         req.user = payload;
         next();
     } catch (err) {
-        console.error("Auth middleware error:", err);
+        logger.error({ err }, "Auth middleware error");
         return res.status(500).json({ message: "Internal server error" });
     }
 };

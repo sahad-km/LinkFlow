@@ -1,3 +1,5 @@
+import logger from "./utils/logger";
+
 const API_BASE = import.meta.env.VITE_API_BASE_URL || "";
 
 export const getToken = () => localStorage.getItem("linkflow_token");
@@ -23,6 +25,8 @@ const request = async (endpoint, options = {}) => {
     ...options.headers,
   };
 
+  logger.debug("API Request", { endpoint, method: options.method || "GET" });
+
   const response = await fetch(`${API_BASE}${endpoint}`, {
     ...options,
     headers,
@@ -30,6 +34,7 @@ const request = async (endpoint, options = {}) => {
 
   const data = await response.json().catch(() => ({}));
   if (!response.ok) {
+    logger.warn("API Error Response", { endpoint, status: response.status, message: data.message });
     throw new Error(data.message || `Request failed with status ${response.status}`);
   }
   return data;
@@ -64,8 +69,8 @@ export const api = {
   logout: async () => {
     try {
       await request("/auth/logout", { method: "POST" });
-    } catch {
-      // Ignore network errors on logout
+    } catch (err) {
+      logger.debug("Logout network error ignored", err);
     }
     removeToken();
     removeUser();
@@ -122,7 +127,8 @@ export const api = {
         redirect: redir.status === "fulfilled" && redir.value.ok,
         analytics: analytics.status === "fulfilled" && analytics.value.ok,
       };
-    } catch {
+    } catch (err) {
+      logger.warn("System status check failed", err);
       return { gateway: false, auth: false, url: false, redirect: false, analytics: false };
     }
   },

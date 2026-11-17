@@ -2,8 +2,9 @@ import "dotenv/config";
 import express from "express";
 import proxy from "express-http-proxy";
 import cors from "cors";
-import morgan from "morgan";
+import pinoHttp from "pino-http";
 import { rateLimit } from "express-rate-limit";
+import logger from "./logger.js";
 
 const app = express();
 
@@ -22,7 +23,28 @@ app.use(cors({
     credentials: true
 }));
 
-app.use(morgan(process.env.NODE_ENV === "production" ? "combined" : "dev"));
+app.use(pinoHttp({
+    logger,
+    autoLogging: {
+        ignore: (req) => process.env.NODE_ENV === "test" && req.url === "/health"
+    },
+    customLogLevel: (req, res, err) => {
+        if (res.statusCode >= 500 || err) return "error";
+        if (res.statusCode >= 400) return "warn";
+        return "info";
+    },
+    serializers: {
+        req: (req) => ({
+            id: req.id,
+            method: req.method,
+            url: req.url,
+            remoteAddress: req.remoteAddress,
+        }),
+        res: (res) => ({
+            statusCode: res.statusCode,
+        }),
+    },
+}));
 
 // 1. Global Rate Limiter: General DoS & aggressive crawler protection
 export const globalLimiter = rateLimit({
@@ -77,7 +99,13 @@ app.get("/health", (req, res) => {
 });
 
 const proxyOptions = {
-    parseReqBody: false
+    parseReqBody: false,
+    proxyReqOptDecorator: (proxyReqOpts, srcReq) => {
+        if (srcReq.id) {
+            proxyReqOpts.headers["x-request-id"] = srcReq.id;
+        }
+        return proxyReqOpts;
+    },
 };
 
 // Target-specific rate limits before proxying
@@ -96,5 +124,15 @@ app.get("/:shortCode", proxy(process.env.REDIRECT_SERVICE || "http://localhost:8
     ...proxyOptions,
     proxyReqPathResolver: (req) => `/${req.params.shortCode}`
 }));
+
+// Centralized error handling
+app.use((err, req, res, next) => {
+    logger.error({ err }, "Gateway unhandled error");
+    if (!res.headersSent) {
+        res.status(err.status || 500).json({
+            message: err.message || "Internal gateway error"
+        });
+    }
+});
 
 export default app;

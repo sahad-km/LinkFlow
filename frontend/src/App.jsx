@@ -8,6 +8,7 @@ import QrModal from "./components/QrModal";
 import AnalyticsModal from "./components/AnalyticsModal";
 import { api, getUser, getToken } from "./api";
 import { CheckCircle2, AlertCircle, Info } from "lucide-react";
+import logger from "./utils/logger";
 
 export default function App() {
   const [activeTab, setActiveTab] = useState("shortener");
@@ -31,9 +32,13 @@ export default function App() {
     if (getToken()) {
       api.getMe()
         .then((res) => {
-          if (res.user) setUser(res.user);
+          if (res.user) {
+            setUser(res.user);
+            logger.info("User session restored", { userId: res.user.id });
+          }
         })
-        .catch(() => {
+        .catch((err) => {
+          logger.debug("Session verification failed or token expired", err);
           setUser(null);
         });
     }

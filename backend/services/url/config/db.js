@@ -1,4 +1,5 @@
 import postgres from "postgres";
+import logger from "../logger.js";
 
 const connectionString = process.env.DATABASE_URL || "postgres://postgres:mysecretpassword@localhost:5432/postgres";
 
@@ -43,16 +44,16 @@ export const connectDB = async () => {
         await sql`SELECT 1`;
         await initTables();
 
-        console.log("URL Service: PostgreSQL Connected & URLs Table Ready");
+        logger.info("URL Service: PostgreSQL Connected & URLs Table Ready");
     } catch (error) {
-        console.error("Error connecting to database:", error);
+        logger.error({ err: error }, "Error connecting to database");
         throw error;
     }
 };
 
 export const closeDB = async () => {
     await sql.end();
-    console.log("URL Service: PostgreSQL connection closed");
+    logger.info("URL Service: PostgreSQL connection closed");
 };
 
 export default sql;

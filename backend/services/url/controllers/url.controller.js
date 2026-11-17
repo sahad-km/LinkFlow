@@ -1,6 +1,7 @@
 import { sql } from "../config/db.js";
 import redis from "../config/redis.js";
 import { encodeBase62 } from "../utils/base62.utils.js";
+import logger from "../logger.js";
 
 const BASE_URL = process.env.BASE_URL || "http://localhost:8000";
 
@@ -52,7 +53,7 @@ export const createUrl = async (req, res) => {
         try {
             await redis.set(`url:${shortCode}`, longUrl, "EX", 2592000);
         } catch (cacheError) {
-            console.error("Redis cache write failed:", cacheError.message);
+            logger.error({ err: cacheError }, "Redis cache write failed");
         }
 
         const shortUrl = `${BASE_URL}/${shortCode}`;
@@ -79,7 +80,7 @@ export const createUrl = async (req, res) => {
             });
         }
 
-        console.error("Create URL error:", error);
+        logger.error({ err: error }, "Create URL error");
 
         return res.status(500).json({
             success: false,
@@ -124,7 +125,7 @@ export const getUrlDetails = async (req, res) => {
             }
         });
     } catch (error) {
-        console.error("Get URL details error:", error);
+        logger.error({ err: error }, "Get URL details error");
         return res.status(500).json({
             success: false,
             message: "Internal server error"
@@ -163,7 +164,7 @@ export const getMyUrls = async (req, res) => {
             data: formattedUrls
         });
     } catch (error) {
-        console.error("Get my URLs error:", error);
+        logger.error({ err: error }, "Get my URLs error");
         return res.status(500).json({
             success: false,
             message: "Internal server error"
@@ -213,7 +214,7 @@ export const deleteUrl = async (req, res) => {
             message: "Short URL deleted successfully"
         });
     } catch (error) {
-        console.error("Delete URL error:", error);
+        logger.error({ err: error }, "Delete URL error");
         return res.status(500).json({
             success: false,
             message: "Internal server error"

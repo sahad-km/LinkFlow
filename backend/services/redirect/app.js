@@ -3,6 +3,7 @@ import "dotenv/config";
 import express from "express";
 import morgan from "morgan";
 import redirectRoutes from "./routes/redirect.routes.js";
+import logger from "./logger.js";
 
 const app = express();
 
@@ -32,7 +33,7 @@ app.use((req, res) => {
 });
 
 app.use((err, req, res, next) => {
-    console.error("Redirect Service Error:", err);
+    logger.error({ err }, "Redirect Service Error");
     res.status(err.status || 500).json({
         success: false,
         message: err.message || "Internal server error"

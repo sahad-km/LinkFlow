@@ -1,4 +1,3 @@
-
 import "dotenv/config";
 import app from "./app.js";
 import { connectDB, sql } from "./config/db.js";
@@ -10,6 +9,7 @@ import {
     connectDLQProducer,
     disconnectDLQProducer
 } from "./producers/dlqProducer.js";
+import logger from "./logger.js";
 
 const PORT = process.env.PORT || 8004;
 
@@ -23,10 +23,10 @@ const startServer = async () => {
         await connectConsumer();
 
         server = app.listen(PORT, () => {
-            console.log(`Analytics server is running on port ${PORT}`);
+            logger.info({ port: PORT }, `Analytics server is running on port ${PORT}`);
         });
     } catch (error) {
-        console.error("Analytics service startup failed:", error);
+        logger.error({ err: error }, "Analytics service startup failed");
         process.exit(1);
     }
 };
@@ -37,7 +37,7 @@ const gracefulShutdown = async () => {
     if (isShuttingDown) return;
     isShuttingDown = true;
 
-    console.log("\nAnalytics Service shutting down...");
+    logger.info("Analytics Service shutting down...");
 
     try {
         // Wait for startup to finish before shutting down.
@@ -50,27 +50,27 @@ const gracefulShutdown = async () => {
             await new Promise((resolve) => {
                 server.close(resolve);
             });
-            console.log("HTTP server closed");
+            logger.info("HTTP server closed");
         }
 
         // 2. Disconnect Kafka consumer
 
         await disconnectConsumer();
-        console.log("Kafka consumer disconnected");
+        logger.info("Kafka consumer disconnected");
 
         await disconnectDLQProducer();
-        console.log("DLQ producer disconnected");
+        logger.info("DLQ producer disconnected");
 
     } catch (error) {
-        console.error("Error during service shutdown:", error);
+        logger.error({ err: error }, "Error during service shutdown");
         process.exitCode = 1;
     } finally {
         // 3. Close PostgreSQL pool
         try {
             await sql.end({ timeout: 5 });
-            console.log("PostgreSQL connection pool closed");
+            logger.info("PostgreSQL connection pool closed");
         } catch (error) {
-            console.error("Error closing PostgreSQL:", error);
+            logger.error({ err: error }, "Error closing PostgreSQL");
             process.exitCode = 1;
         }
     }

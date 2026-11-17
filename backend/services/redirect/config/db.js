@@ -1,4 +1,5 @@
 import postgres from "postgres";
+import logger from "../logger.js";
 
 const connectionString = process.env.DATABASE_URL || "postgres://postgres:mysecretpassword@localhost:5432/postgres";
 
@@ -11,16 +12,16 @@ export const sql = postgres(connectionString, {
 export const connectDB = async () => {
     try {
         await sql`SELECT 1`;
-        console.log("Redirect Service: PostgreSQL Connected");
+        logger.info("Redirect Service: PostgreSQL Connected");
     } catch (error) {
-        console.error("Error connecting to database:", error);
+        logger.error({ err: error }, "Error connecting to database");
         process.exit(1);
     }
 };
 
 export const closeDB = async () => {
     await sql.end();
-    console.log("Redirect Service: PostgreSQL connection closed");
+    logger.info("Redirect Service: PostgreSQL connection closed");
 };
 
 export default sql;

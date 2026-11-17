@@ -1,4 +1,5 @@
 import postgres from "postgres";
+import logger from "../logger.js";
 
 const connectionString = process.env.DATABASE_URL || "postgres://postgres:mysecretpassword@localhost:5432/postgres";
 
@@ -52,13 +53,13 @@ export const connectDB = async () => {
         await sql`SELECT 1`;
         await initTables();
 
-        console.log(
+        logger.info(
             "Analytics Service: PostgreSQL Connected & click_events Table Ready"
         );
     } catch (error) {
-        console.error(
-            "Analytics Service: Error connecting to database:",
-            error.message
+        logger.error(
+            { err: error },
+            "Analytics Service: Error connecting to database"
         );
 
         throw error;

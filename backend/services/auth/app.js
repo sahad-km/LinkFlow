@@ -3,6 +3,7 @@ import express from "express";
 import morgan from "morgan";
 import cookieParser from "cookie-parser";
 import authRoutes from "./routes/auth.routes.js";
+import logger from "./logger.js";
 
 const app = express();
 
@@ -36,7 +37,7 @@ app.use((req, res) => {
 
 // Centralized error handling
 app.use((err, req, res, next) => {
-    console.error("Unhandled Auth Error:", err);
+    logger.error({ err }, "Unhandled Auth Error");
     res.status(err.status || 500).json({
         message: err.message || "Internal server error"
     });

@@ -1,5 +1,6 @@
 
 import kafka from "../config/kafka.js";
+import logger from "../logger.js";
 
 const producer = kafka.producer();
 
@@ -11,7 +12,7 @@ export const connectDLQProducer = async () => {
     await producer.connect();
     isConnected = true;
 
-    console.log("Analytics Service: DLQ producer connected");
+    logger.info("Analytics Service: DLQ producer connected");
 };
 
 export const publishToDLQ = async ({
@@ -57,7 +58,8 @@ export const publishToDLQ = async ({
         ]
     });
 
-    console.log(
+    logger.warn(
+        { topic, partition, offset: message.offset, err: error },
         `Analytics Service: Event sent to DLQ [${topic}:${partition}:${message.offset}]`
     );
 };
@@ -68,5 +70,5 @@ export const disconnectDLQProducer = async () => {
     await producer.disconnect();
     isConnected = false;
 
-    console.log("Analytics Service: DLQ producer disconnected");
+    logger.info("Analytics Service: DLQ producer disconnected");
 };

@@ -1,4 +1,5 @@
 import { sql } from "../config/db.js";
+import logger from "../logger.js";
 
 /**
  * Get comprehensive analytics for a specific short URL
@@ -133,7 +134,7 @@ export const getUrlAnalytics = async (req, res) => {
         });
 
     } catch (error) {
-        console.error("Analytics fetch error:", error);
+        logger.error({ err: error, shortCode }, "Analytics fetch error");
         return res.status(500).json({
             success: false,
             message: "Failed to retrieve analytics"
@@ -169,7 +170,7 @@ export const getGlobalSummary = async (req, res) => {
             }
         });
     } catch (error) {
-        console.error("Global summary error:", error);
+        logger.error({ err: error }, "Global summary error");
         return res.status(500).json({
             success: false,
             message: "Failed to retrieve global analytics summary"

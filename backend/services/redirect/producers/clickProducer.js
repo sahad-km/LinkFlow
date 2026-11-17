@@ -1,5 +1,6 @@
 import { Partitioners } from "kafkajs";
 import kafka from '../config/kafka.js';
+import logger from '../logger.js';
 
 const producer = kafka.producer({
     createPartitioner: Partitioners.DefaultPartitioner
@@ -8,11 +9,11 @@ const producer = kafka.producer({
 const connectProducer = async () => {
     try {
         await producer.connect();
-        console.log("Redirect Service: Kafka producer connected");
+        logger.info("Redirect Service: Kafka producer connected");
     } catch (error) {
-        console.error(
-            "Redirect Service: Failed to connect Kafka producer:",
-            error.message
+        logger.error(
+            { err: error },
+            "Redirect Service: Failed to connect Kafka producer"
         );
         throw error;
     }
@@ -33,19 +34,19 @@ const publishClickEvent = async (event) => {
         ],
     });
 
-    console.log("Kafka click event published successfully:", {
+    logger.info({
         eventId: event.eventId,
         shortCode: event.shortCode,
         linkId: event.linkId
-    });
+    }, "Kafka click event published successfully");
 };
 
 const disconnectProducer = async () => {
     try {
         await producer.disconnect();
-        console.log("Redirect Service: Kafka producer disconnected");
+        logger.info("Redirect Service: Kafka producer disconnected");
     } catch (error) {
-        console.error("Redirect Service: Error disconnecting Kafka producer:", error.message);
+        logger.error({ err: error }, "Redirect Service: Error disconnecting Kafka producer");
     }
 };
 

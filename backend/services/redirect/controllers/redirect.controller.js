@@ -2,6 +2,7 @@ import crypto from "crypto";
 import { sql } from "../config/db.js";
 import redis from "../config/redis.js";
 import { publishClickEvent } from "../producers/clickProducer.js";
+import logger from "../logger.js";
 
 const CACHE_TTL_SECONDS = parseInt(process.env.CACHE_TTL_SECONDS || "604800", 10); // 7 days
 
@@ -14,9 +15,9 @@ const trackAnalyticsOperation = (operation, label, shortCode) => {
     trackedOperation = Promise.resolve()
         .then(operation)
         .catch((error) => {
-            console.error(
-                `${label} failed for ${shortCode}:`,
-                error.message
+            logger.error(
+                { err: error, shortCode },
+                `${label} failed for ${shortCode}`
             );
         })
         .finally(() => {
@@ -57,7 +58,7 @@ export const handleRedirect = async (req, res) => {
     try {
         cachedUrl = await redis.get(cacheKey);
     } catch (error) {
-        console.error("Redis cache read failed:", error.message);
+        logger.error({ err: error, shortCode }, "Redis cache read failed");
     }
 
     // 2. Cache hit.
@@ -146,7 +147,7 @@ export const handleRedirect = async (req, res) => {
                 CACHE_TTL_SECONDS
             );
         } catch (error) {
-            console.error("Redis cache write failed:", error.message);
+            logger.error({ err: error, shortCode }, "Redis cache write failed");
         }
 
         recordClick(shortCode, urlRecord.id, req);
@@ -154,7 +155,7 @@ export const handleRedirect = async (req, res) => {
         return res.redirect(302, targetUrl);
 
     } catch (error) {
-        console.error("Redirect error:", error);
+        logger.error({ err: error, shortCode }, "Redirect error");
 
         return res.status(500).json({
             success: false,
@@ -169,8 +170,8 @@ export const handleRedirect = async (req, res) => {
  * GET /cache-status/:shortCode
  */
 export const getCacheStatus = async (req, res) => {
+    const { shortCode } = req.params;
     try {
-        const { shortCode } = req.params;
         const cacheKey = `url:${shortCode}`;
 
         const [cachedValue, ttl] = await Promise.all([
@@ -194,7 +195,7 @@ export const getCacheStatus = async (req, res) => {
             databaseDetails: dbRecord || null
         });
     } catch (error) {
-        console.error("Get cache status error:", error);
+        logger.error({ err: error, shortCode }, "Get cache status error");
         return res.status(500).json({ success: false, message: "Internal server error" });
     }
 };

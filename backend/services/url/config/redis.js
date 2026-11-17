@@ -1,5 +1,6 @@
 
 import Redis from "ioredis";
+import logger from "../logger.js";
 
 const redisUrl = process.env.REDIS_URL || "redis://localhost:6379";
 const COUNTER_START = process.env.COUNTER_START || "60000000000";
@@ -13,11 +14,11 @@ export const redis = new Redis(redisUrl, {
 });
 
 redis.on("connect", () => {
-    console.log("URL Service: Redis Connected");
+    logger.info("URL Service: Redis Connected");
 });
 
 redis.on("error", (err) => {
-    console.error("URL Service: Redis Connection Error:", err.message);
+    logger.error({ err }, "URL Service: Redis Connection Error");
 });
 
 /**
@@ -30,7 +31,7 @@ export const connectRedis = async () => {
     }
 
     await redis.ping();
-    console.log("URL Service: Redis Connected");
+    logger.info("URL Service: Redis Connected");
 };
 
 export const initCounter = async () => {
@@ -41,10 +42,10 @@ export const initCounter = async () => {
 
         if (!currentVal || BigInt(currentVal) < BigInt(COUNTER_START)) {
             await redis.set("url:counter", COUNTER_START);
-            console.log(`URL Service: Advanced Redis url:counter to ${COUNTER_START}`);
+            logger.info({ counterStart: COUNTER_START }, `URL Service: Advanced Redis url:counter to ${COUNTER_START}`);
         }
     } catch (err) {
-        console.error("Failed to initialize Redis counter:", err.message);
+        logger.error({ err }, "Failed to initialize Redis counter");
         throw err;
     }
 };

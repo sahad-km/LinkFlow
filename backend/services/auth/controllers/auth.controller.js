@@ -1,6 +1,7 @@
 import bcrypt from "bcryptjs";
 import sql from "../config/db.js";
 import { generateTokens, verifyRefreshToken, COOKIE_OPTIONS } from "../utils/token.utils.js";
+import logger from "../logger.js";
 
 /**
  * Register a new user
@@ -50,7 +51,7 @@ export const register = async (req, res) => {
             refreshToken
         });
     } catch (error) {
-        console.error("Register error:", error);
+        logger.error({ err: error }, "Register error");
         return res.status(500).json({ message: "Internal server error" });
     }
 };
@@ -107,7 +108,7 @@ export const login = async (req, res) => {
             refreshToken
         });
     } catch (error) {
-        console.error("Login error:", error);
+        logger.error({ err: error }, "Login error");
         return res.status(500).json({ message: "Internal server error" });
     }
 };
@@ -178,7 +179,7 @@ export const refreshToken = async (req, res) => {
             refreshToken: newRefreshToken
         });
     } catch (error) {
-        console.error("Refresh token error:", error);
+        logger.error({ err: error }, "Refresh token error");
         return res.status(500).json({ message: "Internal server error" });
     }
 };
@@ -206,7 +207,7 @@ export const logout = async (req, res) => {
 
         return res.status(200).json({ message: "Logged out successfully" });
     } catch (error) {
-        console.error("Logout error:", error);
+        logger.error({ err: error }, "Logout error");
         return res.status(500).json({ message: "Internal server error" });
     }
 };
@@ -230,7 +231,7 @@ export const getMe = async (req, res) => {
 
         return res.status(200).json({ user });
     } catch (error) {
-        console.error("GetMe error:", error);
+        logger.error({ err: error }, "GetMe error");
         return res.status(500).json({ message: "Internal server error" });
     }
 };
@@ -289,7 +290,7 @@ export const changePassword = async (req, res) => {
             refreshToken: newRefreshToken
         });
     } catch (error) {
-        console.error("Change password error:", error);
+        logger.error({ err: error }, "Change password error");
         return res.status(500).json({ message: "Internal server error" });
     }
 };
